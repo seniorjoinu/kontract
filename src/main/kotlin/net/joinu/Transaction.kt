@@ -36,7 +36,8 @@ data class TransactionHeader(
     val inputs: List<ByteArray>,
     val outputs: List<ByteArray>,
     val family: String,
-    val type: String
+    val type: String,
+    val version: String
 ) {
     fun toByteArray(): ByteArray {
         val familyBytes = family.toByteArray(StandardCharsets.UTF_8)
@@ -75,20 +76,33 @@ class TransactionHeaderBuilder {
 
     var family = ""
     var type = ""
+    var version = ""
 
-    fun i(input: ByteArray) { inputs.add(input) }
-    fun i(inputs: Collection<ByteArray>) { this.inputs.addAll(inputs) }
-    fun o(output: ByteArray) { outputs.add(output) }
-    fun o(outputs: Collection<ByteArray>) { this.outputs.addAll(outputs) }
+    fun input(input: ByteArray) {
+        inputs.add(input)
+    }
+
+    fun input(inputs: Collection<ByteArray>) {
+        this.inputs.addAll(inputs)
+    }
+
+    fun output(output: ByteArray) {
+        outputs.add(output)
+    }
+
+    fun output(outputs: Collection<ByteArray>) {
+        this.outputs.addAll(outputs)
+    }
 
     internal fun build(): TransactionHeader {
         require(inputs.isNotEmpty()) { "Inputs are not defined!" }
         require(outputs.isNotEmpty()) { "Outputs are not defined!" }
         require(family.isNotBlank()) { "Transaction family is not specified!" }
         require(type.isNotBlank()) { "Transaction type is not specified!" }
+        require(version.isNotBlank()) { "Transaction version is not specified" }
         require((inputs + outputs).all { it.size == inputs.first().size }) { "Inputs and outputs should all be of the same size" }
 
-        return TransactionHeader(inputs, outputs, family, type)
+        return TransactionHeader(inputs, outputs, family, type, version)
     }
 }
 
@@ -135,11 +149,12 @@ fun main() {
 
     val t = txn {
         header {
-            i(myAddr)
-            o(myAddr)
+            input(myAddr)
+            output(myAddr)
 
             family = "settings"
             type = "test"
+            version = "1.0"
         }
 
         payload = myPayload
