@@ -1,33 +1,17 @@
 package net.joinu
 
 
-data class Contract(val header: ContractHeader, val stateFunctions: List<StateFunction>)
+data class Contract(val header: ContractHeader, val body: ContractBody)
 
 data class ContractHeader(
     val family: String,
     val type: String,
-    val version: String,
-    val affectedInputNamespaces: List<ByteArray>,
-    val affectedOutputNamespaces: List<ByteArray>
+    val version: String
 )
-
-// TODO: we need to make something with this, we need to store some tokens instead of actual stuff
-sealed class StateFunction {
-    data class SET_CONST(val address: ByteArray, val payload: ByteArray) : StateFunction()
-    data class GET_CONST(val address: ByteArray) : StateFunction()
-}
-
-sealed class StateVariable {
-    data class ADDRESS(val name: String) : StateVariable()
-}
-
-sealed class Operation {
-    data class ASSIGN(val variable: StateVariable, val result: StateFunction) : Operation()
-}
 
 class ContractBuilder : Builder<Contract> {
     private var header: ContractHeader? = null
-    private var stateFunctions: List<StateFunction>? = null
+    private var body: ContractBody? = null
 
     fun header(init: ContractHeaderBuilder.() -> Unit) {
         val headerBuilder = ContractHeaderBuilder()
@@ -35,68 +19,29 @@ class ContractBuilder : Builder<Contract> {
         header = headerBuilder.build()
     }
 
-    fun body(init: ContractBodyBuilder.() -> Unit) {
-        val opsBuilder = ContractBodyBuilder()
-        opsBuilder.init()
-        stateFunctions = opsBuilder.build()
+    fun body(body: ContractBody) {
+        this.body = body
     }
 
     override fun build(): Contract {
         require(header != null) { "Header should be specified!" }
-        require(stateFunctions != null) { "Body should be specified!" }
+        require(body != null) { "Body should be specified!" }
 
-        return Contract(header!!, stateFunctions!!)
+        return Contract(header!!, body!!)
     }
 }
 
 class ContractHeaderBuilder : Builder<ContractHeader> {
-    private val affectedInputNamespaces = mutableListOf<ByteArray>()
-    private val affectedOutputNamespaces = mutableListOf<ByteArray>()
-
     var family: String = ""
     var type: String = ""
     var version: String = ""
-
-    fun affectInputNamespace(input: ByteArray) {
-        affectedInputNamespaces.add(input)
-    }
-
-    fun affectInputNamespace(inputs: Collection<ByteArray>) {
-        affectedInputNamespaces.addAll(inputs)
-    }
-
-    fun affectOutputNamespace(output: ByteArray) {
-        affectedOutputNamespaces.add(output)
-    }
-
-    fun affectOutputNamespace(outputs: Collection<ByteArray>) {
-        affectedInputNamespaces.addAll(outputs)
-    }
 
     override fun build(): ContractHeader {
         require(family.isNotBlank()) { "Contract family should be specified!" }
         require(type.isNotBlank()) { "Contract type should be specified!" }
         require(version.isNotBlank()) { "Contract version should be specified!" }
 
-        return ContractHeader(family, type, version, affectedInputNamespaces, affectedOutputNamespaces)
-    }
-}
-
-class ContractBodyBuilder : Builder<List<StateFunction>> {
-    private val operations = mutableListOf<StateFunction>()
-
-    infix fun ByteArray.set(data: ByteArray) {
-        operations.add(StateFunction.SET_CONST(this, data))
-    }
-
-    fun get(address: ByteArray):
-
-            override
-
-    fun build(): List<StateFunction> {
-        require(operations.isNotEmpty()) { "You should specify at least one operation for contract" }
-
-        return operations
+        return ContractHeader(family, type, version)
     }
 }
 
@@ -105,3 +50,46 @@ interface Builder<T : Any> {
     fun build(): T
 }
 
+typealias ContractBody = (txn: SignedTransaction) -> Boolean
+
+fun kontract(init: ContractBuilder.() -> Unit): Contract {
+    val contractBuilder = ContractBuilder()
+    contractBuilder.init()
+    return contractBuilder.build()
+}
+
+fun main() {
+    val myAddr = ByteArray(100)
+    val myPayload = ByteArray(10)
+    val myEmptyKey = ByteArray(1)
+
+    val txn = txn {
+        header {
+            input(myAddr)
+            output(myAddr)
+
+            family = "settings"
+            type = "test"
+            version = "1.0"
+        }
+
+        payload = myPayload
+
+        sign { SignatureAndPublicKey(it.sliceArray(0 until 10), myEmptyKey) }
+    }
+
+    val contract = kontract {
+        header {
+            family = "test"
+            type = "test"
+            version = "1.0"
+        }
+
+        body { txn ->
+            println("test")
+            true
+        }
+    }
+
+    contract.body(txn)
+}

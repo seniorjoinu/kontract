@@ -161,6 +161,4 @@ fun main() {
 
         sign { SignatureAndPublicKey(it.sliceArray(0 until 10), myEmptyKey) }
     }
-
-    t
 }
