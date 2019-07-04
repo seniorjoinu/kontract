@@ -2,63 +2,30 @@ package net.joinu
 
 import org.junit.jupiter.api.Test
 
-class TrieTest {
+
+data class Test(val kek: String, val lol: Long, val shrek: Test1)
+data class Test1(val mem: Int, val shpek: Test2)
+data class Test2(val aue: Array<Int>)
+
+
+class KVTest {
     @Test
-    fun `node split works as expected`() {
-        val node = TrieNode("abcdefg", null, "123")
-        val (base, suffix) = node.split(3)
+    fun kek() {
+        val kv = InMemoryKeyValueStorage()
 
-        assert(base.prefix == null)
-        assert(!base.isLeaf())
-        assert(base.absolutePath == "abcd")
-        assert(base.path == base.absolutePath)
-        assert(base.isPrefixFor("abcdefg"))
-        assert(base.value == null)
+        kv["/base/suffix1/value1"] = "1"
+        kv["/base/suffix1/value2"] = "2"
+        kv["/base/suffix2/value1"] = "3"
+        kv["/base/suffix2/value2"] = "4"
 
-        assert(suffix.isLeaf())
-        assert(suffix.absolutePath == "abcdefg")
-        assert(suffix.path == "efg")
-        assert(suffix.prefix == base)
-        assert(suffix.value == "123")
-    }
+        println(kv.keys)
+        println(kv.values)
+        println(kv.entries)
+        println(kv.subset("/base/suffix1").entries)
 
-    @Test
-    fun `node append remove work as expected`() {
-        val node = TrieNode("test", null)
+        val k = Test("123", 123, Test1(12, Test2(arrayOf(1, 2, 3, 4))))
 
-        assert(node.isLeaf())
-
-        val child = node.append("123", "val")
-
-        assert(!node.isLeaf())
-        assert(child.isLeaf())
-        assert(node.absolutePath == "test")
-        assert(child.absolutePath == "test123")
-        assert(node.value == null)
-        assert(child.value == "val")
-
-        assert(!node.remove("12"))
-        assert(!node.isLeaf())
-
-        assert(node.remove("123"))
-        assert(node.isLeaf())
-    }
-
-    @Test
-    fun `forking works as expected`() {
-        val root = TrieNode("/base/value1", null, "abc")
-        val (newRoot, branch) = root.split("/base")
-
-        assert(newRoot.path == "/base")
-        assert(branch.path == "/value1")
-
-        val anotherBranch = newRoot.append("/value2", "def")
-        assert(!newRoot.isLeaf())
-        assert(branch.isLeaf())
-        assert(anotherBranch.isLeaf())
-        assert(branch.value == "abc")
-        assert(anotherBranch.value == "def")
-        assert(branch.absolutePath == "/base/value1")
-        assert(anotherBranch.absolutePath == "/base/value2")
+        kv.merge(k, "/base/suffix1/")
+        println(kv.entries)
     }
 }

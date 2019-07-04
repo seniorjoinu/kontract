@@ -11,11 +11,13 @@ version '1.0-SNAPSHOT'
 
 repositories {
     mavenCentral()
+    maven { url 'https://jitpack.io' }
 }
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
-    implementation 'com.googlecode.json-simple:json-simple:1.1.1'
+    implementation 'com.github.arunkumar9t2:trie:-SNAPSHOT'
+    implementation "com.fasterxml.jackson.module:jackson-module-kotlin:2.9.9"
     
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.3.1'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.3.1'
