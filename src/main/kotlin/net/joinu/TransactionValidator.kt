@@ -9,13 +9,19 @@ class TransactionValidator {
     fun register(vararg contracts: Contract) = this.contracts.addAll(contracts)
 
     fun validate(txn: SignedTransaction): Boolean {
-        return contracts.all {
-            try {
-                it.body(txn)
-            } catch (ex: Throwable) {
-                throw ContractException("Contract: $it thrown an exception", ex)
+        return contracts
+            .filter {
+                it.header.family == txn.body.header.family
+                        && it.header.type == txn.body.header.type
+                        && it.header.version == txn.body.header.version
             }
-        }
+            .all {
+                try {
+                    it.body(txn)
+                } catch (ex: Throwable) {
+                    throw ContractException("Contract: $it thrown an exception", ex)
+                }
+            }
     }
 }
 

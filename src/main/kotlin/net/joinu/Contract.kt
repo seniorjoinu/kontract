@@ -57,39 +57,3 @@ fun kontract(init: ContractBuilder.() -> Unit): Contract {
     contractBuilder.init()
     return contractBuilder.build()
 }
-
-fun main() {
-    val myAddr = ByteArray(100)
-    val myPayload = ByteArray(10)
-    val myEmptyKey = ByteArray(1)
-
-    val txn = txn {
-        header {
-            input(myAddr)
-            output(myAddr)
-
-            family = "settings"
-            type = "test"
-            version = "1.0"
-        }
-
-        payload = myPayload
-
-        sign { SignatureAndPublicKey(it.sliceArray(0 until 10), myEmptyKey) }
-    }
-
-    val contract = kontract {
-        header {
-            family = "test"
-            type = "test"
-            version = "1.0"
-        }
-
-        body { txn ->
-            println("test")
-            true
-        }
-    }
-
-    contract.body(txn)
-}

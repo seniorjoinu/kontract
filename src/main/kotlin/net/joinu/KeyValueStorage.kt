@@ -1,96 +1,71 @@
 package net.joinu
 
 import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.JsonNodeFactory
+import com.fasterxml.jackson.databind.node.MissingNode
+import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 
 
-interface KeyValueStorage : MutableMap<String, String> {
-    fun subset(prefix: String): KeyValueStorage
-    fun <T : Any> subset(prefix: String, clazz: Class<T>): T?
-    fun merge(other: Map<String, String>, prefix: String = "")
-    fun merge(obj: Any, prefix: String = "")
-}
+class JsonKeyValueStorage(val root: ObjectNode = JsonNodeFactory.instance.objectNode(), val separator: String = "/") {
+    override fun toString() = root.toString()
 
-inline fun <reified T : Any> KeyValueStorage.subset(prefix: String) = subset(prefix, T::class.java)
+    fun get(path: String): JsonNode {
+        val parts = path.split(separator)
 
-class InMemoryKeyValueStorage : KeyValueStorage {
-    private val trie = CaseSensitiveMapTrie<String>()
-    private val mapper = jacksonObjectMapper()
+        var currentNode = root
 
-    override fun merge(obj: Any, prefix: String) {
-        val node = mapper.valueToTree<JsonNode>(obj)
-        val leaves = node.flatLeaves(prefix)
+        for (i in parts.indices) {
+            val result = currentNode.findPath(parts[i])
 
-        leaves.forEach { (key, value) -> put(key, value) }
+            when {
+                i == parts.lastIndex -> return result
+                result !is ObjectNode -> throw RuntimeException("Error getting $path from $this: value of \"${parts[i]}\" is not an object!")
+                else -> currentNode = result
+            }
+        }
+
+        return MissingNode.getInstance()
     }
 
-    override fun merge(other: Map<String, String>, prefix: String) {
-        other.entries.forEach { (key, value) -> put(prefix + key, value) }
+    fun put(path: String, node: JsonNode) {
+        val parts = path.split(separator)
+
+        var currentNode = root
+
+        for (i in parts.indices) {
+            val result = currentNode.findPath(parts[i])
+
+            when {
+                i != parts.lastIndex -> currentNode = when (result) {
+                    is MissingNode -> currentNode.putObject(parts[i])
+                    !is ObjectNode -> throw RuntimeException("Error putting $path to $this: value of \"${parts[i]}\" is not an object!")
+                    else -> result
+                }
+            }
+        }
+
+        currentNode.set(parts.last(), node)
     }
 
-    override val size: Int
-        get() = trie.size()
+    companion object {
+        val mapper = jacksonObjectMapper()
 
-    override fun containsKey(key: String) = trie.contains(key)
-
-    override fun containsValue(value: String) = trie.values().contains(value)
-
-    override fun get(key: String): String? = trie.get(key)
-
-    override fun isEmpty() = trie.size() == 0
-
-    override val entries: MutableSet<MutableMap.MutableEntry<String, String>>
-        get() = trie.keys().associateWith { trie.get(it) }.toMutableMap().entries
-
-    override val keys: MutableSet<String>
-        get() = trie.keys().map { it }.toMutableSet()
-
-    override val values: MutableCollection<String>
-        get() = trie.values()
-
-    override fun clear() = trie.fastClear()
-
-    override fun put(key: String, value: String): String? {
-        val prevValue = trie.get(key)
-        trie.insert(key, value)
-
-        return prevValue
-    }
-
-    override fun putAll(from: Map<out String, String>) = from.forEach { put(it.key, it.value) }
-
-    override fun remove(key: String): String? {
-        val prevValue = trie.get(key)
-        trie.deleteKey(key)
-
-        return prevValue
-    }
-
-    override fun subset(prefix: String): KeyValueStorage {
-        val subsetKeys = trie.getKeySuggestions(prefix)
-        val subset = InMemoryKeyValueStorage()
-
-        subsetKeys.forEach { k -> subset[k] = trie[k] }
-
-        return subset
-    }
-
-    override fun <T : Any> subset(prefix: String, clazz: Class<T>): T? {
-        // TODO: unflatLeaves
-    }
-}
-
-fun JsonNode.flatLeaves(prefix: String = "", separator: String = "/"): Collection<Pair<String, String>> {
-    val result = mutableListOf<Pair<String, String>>()
-
-    for ((key, value) in fields()) {
-        if (value.isObject)
-            result.addAll(value.flatLeaves(prefix + key + separator))
-        else {
-            val strValue = if (value.isTextual) value.asText() else value.toString()
-            result.add(prefix + key to strValue)
+        fun fromString(jsonStr: String, separator: String = "/"): JsonKeyValueStorage {
+            val root = mapper.valueToTree<ObjectNode>(jsonStr)
+            return JsonKeyValueStorage(root, separator)
         }
     }
 
-    return result
+    fun <T : Any> get(path: String, clazz: Class<T>): T? {
+        val node = get(path)
+        return mapper.treeToValue(node, clazz)
+    }
+
+    inline fun <reified T : Any> get(path: String) = get(path, T::class.java)
+
+    fun put(path: String, obj: Any) {
+        val node = mapper.valueToTree<JsonNode>(obj)
+        put(path, node)
+    }
 }

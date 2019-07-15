@@ -3,29 +3,39 @@ package net.joinu
 import org.junit.jupiter.api.Test
 
 
-data class Test(val kek: String, val lol: Long, val shrek: Test1)
-data class Test1(val mem: Int, val shpek: Test2)
-data class Test2(val aue: Array<Int>)
+data class TestPojo(val kek: String, val lol: Long, val shrek: TestPojo1)
+data class TestPojo1(val mem: Int, val shpek: TestPojo2)
+data class TestPojo2(val aue: Array<Int>)
 
 
 class KVTest {
     @Test
-    fun kek() {
-        val kv = InMemoryKeyValueStorage()
+    fun `raw values are added easily`() {
+        val kv = JsonKeyValueStorage()
 
-        kv["/base/suffix1/value1"] = "1"
-        kv["/base/suffix1/value2"] = "2"
-        kv["/base/suffix2/value1"] = "3"
-        kv["/base/suffix2/value2"] = "4"
+        kv.put("works/fine/one", 1)
+        kv.put("works/fine/two", 2)
 
-        println(kv.keys)
-        println(kv.values)
-        println(kv.entries)
-        println(kv.subset("/base/suffix1").entries)
+        println(kv)
 
-        val k = Test("123", 123, Test1(12, Test2(arrayOf(1, 2, 3, 4))))
+        val innerObj = kv.get("works/fine")
 
-        kv.merge(k, "/base/suffix1/")
-        println(kv.entries)
+        println(innerObj)
+    }
+
+    @Test
+    fun `objects are also added easily`() {
+        val kv = JsonKeyValueStorage()
+        val value1 = TestPojo("1", 1, TestPojo1(1, TestPojo2(arrayOf(1, 2, 3, 4))))
+        val value2 = TestPojo("2", 2, TestPojo1(2, TestPojo2(arrayOf(1, 2, 3, 4))))
+
+        kv.put("works/fine/one", value1)
+        kv.put("works/fine/two", value2)
+
+        println(kv)
+
+        val values = kv.get<Map<String, TestPojo>>("works/fine")
+
+        println(values)
     }
 }
